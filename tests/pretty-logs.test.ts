@@ -1,5 +1,7 @@
 import { PrettyLogs } from "../src/pretty-logs";
 import { cleanLogString, cleanSpyLogs, tryError } from "../src/utils";
+const testDist = require('./test-dist');
+
 
 describe("PrettyLogs", () => {
   let logs: PrettyLogs;
@@ -85,6 +87,22 @@ describe("PrettyLogs", () => {
     expect(logReturn).toBeUndefined();
     const cleanLogStrings = cleanSpyLogs(logSpy);
 
+    const errorRegex = /↳tryError\(.+\)↳Object.<anonymous>\(/;
+
+    expect(cleanLogStrings).toEqual([
+      cleanLogString(" ›› This is a METADATA message"),
+      cleanLogString(` ›› ${JSON.stringify({ error: {} })}`),
+      expect.stringMatching(errorRegex),
+    ]);
+  });
+
+  it("should decode the log stack", async () => {
+    await logs.enableSourceMapDecoding("../tests/test-dist/index.js.map");
+    const logSpy = jest.spyOn(console, "debug").mockImplementation();
+    const logReturn = logs.debug("This is a METADATA message", { error: testDist.tryError() });
+    expect(logReturn).toBeUndefined();
+    const cleanLogStrings = cleanSpyLogs(logSpy);
+    console.log(cleanLogStrings);
     const errorRegex = /↳tryError\(.+\)↳Object.<anonymous>\(/;
 
     expect(cleanLogStrings).toEqual([

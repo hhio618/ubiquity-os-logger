@@ -46,6 +46,10 @@ export class Logs {
     return metadata;
   }
 
+  public async enableSourceMapDecoding(sourceMapFile: string) {
+    await Logs.console.enableSourceMapDecoding(sourceMapFile)
+  }
+
   public ok(log: string, metadata?: Metadata): LogReturn {
     metadata = this._addDiagnosticInformation(metadata);
     return this._log({

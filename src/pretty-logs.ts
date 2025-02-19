@@ -1,7 +1,10 @@
 import { LOG_LEVEL, COLORS } from "./constants";
 import { Metadata, LogLevelWithOk, Colors } from "./types/log-types";
+import fs from "fs";
+import { SourceMapConsumer } from "source-map";
 
 export class PrettyLogs {
+  private _sourceMapConsumer?: SourceMapConsumer;
   constructor() {
     this.ok = this.ok.bind(this);
     this.info = this.info.bind(this);
@@ -66,10 +69,12 @@ export class PrettyLogs {
       }
 
       if (typeof stack == "string") {
+        stack = this._decodeStack(stack)
         const prettyStack = this._formatStackTrace(stack, 1);
         const colorizedStack = this._colorizeText(prettyStack, COLORS.dim);
         this._log(type, colorizedStack);
       } else if (stack) {
+        stack = this._decodeStack(stack as unknown as string[])
         const prettyStack = this._formatStackTrace((stack as unknown as string[]).join("\n"), 1);
         const colorizedStack = this._colorizeText(prettyStack, COLORS.dim);
         this._log(type, colorizedStack);
@@ -79,6 +84,40 @@ export class PrettyLogs {
     }
   }
 
+  public async enableSourceMapDecoding(sourceMapFile: string) {
+    this._sourceMapConsumer = await new SourceMapConsumer(
+      JSON.parse(fs.readFileSync(sourceMapFile, 'utf8'))
+    );
+  }
+
+  private _decodeStack(stack: string): string;
+  private _decodeStack(stack: string[]): string[];
+  private _decodeStack(stack: string | string[]): string | string[] {
+    if (!this._sourceMapConsumer)
+      return stack;
+    const _decodeStackLine = (consumer: SourceMapConsumer, stackLine: string): string => {
+      const match = stackLine.match(/\(?(.*):(\d+):(\d+)\)?/);
+      if (!match) return stackLine;
+
+      const [_, file, lineNumber, column] = match;
+      const originalPosition = consumer.originalPositionFor({
+        line: parseInt(lineNumber, 10),
+        column: parseInt(column, 10),
+      });
+
+      if (!originalPosition.source) return stackLine;
+      return `    at ${originalPosition.name} (${originalPosition.source}:${originalPosition.line}:${originalPosition.column})`;
+    }
+    if (typeof stack === "string") {
+      // Handle string input
+      return _decodeStackLine(this._sourceMapConsumer!, stack);
+    } else if (Array.isArray(stack)) {
+      // Handle string[] input
+      return stack.map(s => _decodeStackLine(this._sourceMapConsumer!, s));
+    } else {
+      throw new Error("Invalid input type");
+    }
+  }
   private _colorizeText(text: string, color: Colors): string {
     if (!color) {
       throw new Error(`Invalid color: ${color}`);

@@ -1,6 +1,6 @@
 {
   "preset": "ts-jest",
-  "testEnvironment": "node",
+  "testEnvironment": "jest-environment-node",
   "roots": ["./tests"],
   "coveragePathIgnorePatterns": ["node_modules", "mocks"],
   "collectCoverage": true,
